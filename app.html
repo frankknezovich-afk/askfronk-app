@@ -632,7 +632,8 @@ var cur=null;
 var saved=[];
 try{saved=JSON.parse(localStorage.getItem("af4")||"[]")}catch(e){}
 function $(id){return document.getElementById(id)}
-function nv(id){return parseFloat($(id).value)||0}
+function nv(id){var e=$(id);return e?parseFloat(e.value)||0:0}
+function sv(id,val){var e=$(id);if(e)e.value=val;}
 function fmt(v){if(v===null||isNaN(v))return"—";var s="$"+Math.abs(Math.round(v)).toLocaleString();return v<0?"-"+s:s}
 
 function showNote(msg,cls){
@@ -656,9 +657,15 @@ function fill(d){
   $("iarv").value=d.arv||"";
   $("irehab").value=d.rehab||"";
   $("irent").value=d.rent||"";
-  $("icarry").value=d.carry||"";
   $("isales").value=6;$("slbl").textContent="6%";
   $("ihold").value=6;$("hlbl").textContent="6 mo";
+  // Auto-populate sqft in material calculator
+  if(d.sqft){
+    var sqftNum=parseInt((d.sqft||"").replace(/[^0-9]/g,""));
+    if(sqftNum>0){ var ms=$("msqft"); if(ms) ms.value=sqftNum; calcMat(); }
+  }
+  // Auto-calculate financing with new acquisition price
+  if(finMode==="finance") calcFinancing();
   var ph="";
   if(d.zillow)ph+="<a href='"+d.zillow+"' target='_blank' class='pl plz'>Zillow</a> ";
   if(d.redfin)ph+="<a href='"+d.redfin+"' target='_blank' class='pl plr'>Redfin</a> ";
@@ -791,7 +798,7 @@ function calc(){
 // ── SAVE / LOAD ────────────────────────────────────────────────
 function saveDeal(){
   if(!cur)return;
-  var acq=nv("iacq"),arv=nv("iarv"),rehab=nv("irehab"),rent=nv("irent"),carry=nv("icarry");
+  var acq=nv("iacq"),arv=nv("iarv"),rehab=nv("irehab"),rent=nv("irent");
   var sp=parseFloat($("isales").value)/100,hold=parseInt($("ihold").value)||6;
   var sc=arv*sp,ct=getMonthlyCarry()*hold,ti=getCashIn(),profit=arv-acq-rehab-sc-ct,roi=ti>0?(profit/ti)*100:0;
   saved.unshift({id:Date.now(),address:cur.address,acq:acq,arv:arv,rehab:rehab,profit:Math.round(profit),roi:roi.toFixed(1),rent:rent,deal:JSON.parse(JSON.stringify(cur))});
@@ -806,6 +813,7 @@ function loadSaved(i){
   showNote(null);
   fill(s.deal);
   $("iacq").value=s.acq;$("iarv").value=s.arv;$("irehab").value=s.rehab;$("irent").value=s.rent;
+  if(finMode==="finance") calcFinancing();
   calc();
 }
 function delSaved(i){saved.splice(i,1);try{localStorage.setItem("af4",JSON.stringify(saved))}catch(e){}renderSaved()}
